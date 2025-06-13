@@ -66,6 +66,8 @@ import {
   Warehouse,
   StockTransferWithItems,
 } from "@/lib/supabase";
+import ProductDialog from "@/components/product/ProductDialog";
+import CategoryDialog from "@/components/product/CategoryDialog";
 
 interface ProductDisplay {
   id: string;
@@ -94,6 +96,7 @@ interface CategoryDisplay {
 const InventoryManager = () => {
   const [activeTab, setActiveTab] = useState("products");
   const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -596,7 +599,7 @@ const InventoryManager = () => {
                     disabled={loading}
                   />
                 </div>
-                <Button>
+                <Button onClick={() => setCategoryDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" /> Add Category
                 </Button>
               </div>
@@ -754,86 +757,18 @@ const InventoryManager = () => {
       </Tabs>
 
       {/* Add/Edit Product Dialog */}
-      <Dialog open={productDialogOpen} onOpenChange={setProductDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>
-              Enter the details for the new product. Click save when you're
-              done.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Product Name</Label>
-                <Input id="name" placeholder="Enter product name" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sku">SKU</Label>
-                <Input id="sku" placeholder="Enter SKU" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="electronics">Electronics</SelectItem>
-                    <SelectItem value="furniture">Furniture</SelectItem>
-                    <SelectItem value="appliances">Appliances</SelectItem>
-                    <SelectItem value="clothing">Clothing</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Price</Label>
-                <Input id="price" type="number" placeholder="0.00" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="stock">Initial Stock</Label>
-                <Input id="stock" type="number" placeholder="0" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="warehouse">Warehouse</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select warehouse" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="warehouse-a">Warehouse A</SelectItem>
-                    <SelectItem value="warehouse-b">Warehouse B</SelectItem>
-                    <SelectItem value="warehouse-c">Warehouse C</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter product description"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setProductDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={() => setProductDialogOpen(false)}>
-              Save Product
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProductDialog
+        open={productDialogOpen}
+        onOpenChange={setProductDialogOpen}
+        onSuccess={loadData}
+      />
+
+      {/* Add/Edit Category Dialog */}
+      <CategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        onSuccess={loadData}
+      />
 
       {/* Stock Transfer Dialog */}
       <Dialog open={transferDialogOpen} onOpenChange={setTransferDialogOpen}>

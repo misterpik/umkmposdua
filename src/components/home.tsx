@@ -215,6 +215,11 @@ const Home = () => {
     checkAuth();
   }, [navigate]);
 
+  // Helper function to check if user has access to a feature
+  const hasAccess = (allowedRoles: string[]) => {
+    return currentUser && allowedRoles.includes(currentUser.role);
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -276,41 +281,55 @@ const Home = () => {
       <div className="container px-4 py-6">
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Sales Terminal</CardTitle>
-              <CardDescription>Process new transactions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" onClick={() => navigate("/sales")}>
-                <ShoppingCart className="mr-2 h-4 w-4" /> Open Terminal
-              </Button>
-            </CardContent>
-          </Card>
+          {hasAccess(["admin", "cashier"]) && (
+            <Card className="col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Sales Terminal</CardTitle>
+                <CardDescription>Process new transactions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" onClick={() => navigate("/sales")}>
+                  <ShoppingCart className="mr-2 h-4 w-4" /> Open Terminal
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Inventory</CardTitle>
-              <CardDescription>Manage products and stock</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" onClick={() => navigate("/inventory")}>
-                <Package className="mr-2 h-4 w-4" /> View Inventory
-              </Button>
-            </CardContent>
-          </Card>
+          {hasAccess(["admin", "inventory"]) && (
+            <Card className="col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Inventory</CardTitle>
+                <CardDescription>Manage products and stock</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  onClick={() => navigate("/inventory")}
+                >
+                  <Package className="mr-2 h-4 w-4" /> View Inventory
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card className="col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Warehouse</CardTitle>
-              <CardDescription>Manage locations and transfers</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full" onClick={() => navigate("/warehouse")}>
-                <Box className="mr-2 h-4 w-4" /> Warehouse Controls
-              </Button>
-            </CardContent>
-          </Card>
+          {hasAccess(["admin", "inventory"]) && (
+            <Card className="col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Warehouse</CardTitle>
+                <CardDescription>
+                  Manage locations and transfers
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full"
+                  onClick={() => navigate("/warehouse")}
+                >
+                  <Box className="mr-2 h-4 w-4" /> Warehouse Controls
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Dashboard Content */}
@@ -442,13 +461,15 @@ const Home = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => navigate("/inventory")}
-                >
-                  Manage Inventory
-                </Button>
+                {hasAccess(["admin", "inventory"]) && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => navigate("/inventory")}
+                  >
+                    Manage Inventory
+                  </Button>
+                )}
               </CardFooter>
             </Card>
 
@@ -456,76 +477,69 @@ const Home = () => {
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Based on your role</CardDescription>
+                <CardDescription>
+                  Actions available for your role: {currentUser?.role}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <Tabs defaultValue="admin">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="admin">Admin</TabsTrigger>
-                    <TabsTrigger value="cashier">Cashier</TabsTrigger>
-                    <TabsTrigger value="inventory">Inventory</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="admin" className="space-y-4 mt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/users")}
-                    >
-                      Manage Users
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/settings")}
-                    >
-                      System Settings
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/reports")}
-                    >
-                      View Reports
-                    </Button>
-                  </TabsContent>
-                  <TabsContent value="cashier" className="space-y-4 mt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/sales")}
-                    >
-                      New Transaction
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/returns")}
-                    >
-                      Process Return
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/transactions")}
-                    >
-                      View History
-                    </Button>
-                  </TabsContent>
-                  <TabsContent value="inventory" className="space-y-4 mt-4">
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/inventory/add")}
-                    >
-                      Add Product
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/inventory/restock")}
-                    >
-                      Restock Items
-                    </Button>
-                    <Button
-                      className="w-full"
-                      onClick={() => navigate("/inventory/transfer")}
-                    >
-                      Transfer Stock
-                    </Button>
-                  </TabsContent>
-                </Tabs>
+                <div className="space-y-4">
+                  {/* Admin Actions */}
+                  {hasAccess(["admin"]) && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">
+                        Admin Actions
+                      </h4>
+                      <Button
+                        className="w-full"
+                        onClick={() => navigate("/users")}
+                      >
+                        Manage Users
+                      </Button>
+                      <Button
+                        className="w-full"
+                        onClick={() => navigate("/settings")}
+                      >
+                        System Settings
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Cashier Actions */}
+                  {hasAccess(["admin", "cashier"]) && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">
+                        Sales Actions
+                      </h4>
+                      <Button
+                        className="w-full"
+                        onClick={() => navigate("/sales")}
+                      >
+                        New Transaction
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Inventory Actions */}
+                  {hasAccess(["admin", "inventory"]) && (
+                    <div className="space-y-2">
+                      <h4 className="font-medium text-sm text-muted-foreground">
+                        Inventory Actions
+                      </h4>
+                      <Button
+                        className="w-full"
+                        onClick={() => navigate("/inventory")}
+                      >
+                        Manage Inventory
+                      </Button>
+                      <Button
+                        className="w-full"
+                        onClick={() => navigate("/warehouse")}
+                      >
+                        Warehouse Controls
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
