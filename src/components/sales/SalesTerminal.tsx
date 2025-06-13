@@ -349,7 +349,61 @@ const SalesTerminal = () => {
               </div>
             </TabsContent>
 
-            {/* Other category tabs would filter products by category */}
+            {/* Category-specific tabs */}
+            {categories.map((category) => (
+              <TabsContent
+                key={category}
+                value={category.toLowerCase()}
+                className="mt-0"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredProducts.map((product) => (
+                    <Card key={product.id} className="overflow-hidden">
+                      <div className="aspect-video w-full overflow-hidden bg-muted">
+                        {product.image_url ? (
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center bg-gray-100">
+                            <ShoppingCart className="h-8 w-8 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+                      <CardHeader className="p-4 pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-lg">
+                            {product.name}
+                          </CardTitle>
+                          <Badge variant="outline">{product.category}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0 pb-2">
+                        <div className="flex justify-between items-center">
+                          <p className="font-medium text-lg">
+                            ${product.price.toFixed(2)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Stock: {product.stock}
+                          </p>
+                        </div>
+                      </CardContent>
+                      <CardFooter className="p-4 pt-2">
+                        <Button
+                          onClick={() => addToCart(product)}
+                          className="w-full"
+                          disabled={product.stock <= 0}
+                        >
+                          Add to Cart
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+            ))}
           </Tabs>
         )}
       </div>
