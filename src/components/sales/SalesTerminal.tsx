@@ -69,6 +69,7 @@ const SalesTerminal = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
+  const [amountReceived, setAmountReceived] = useState<string>("");
 
   // Fetch products from Supabase
   useEffect(() => {
@@ -181,7 +182,7 @@ const SalesTerminal = () => {
 
       // Calculate totals
       const subtotal = cartTotal;
-      const taxAmount = cartTotal * 0.08;
+      const taxAmount = cartTotal * 0.11;
       const totalAmount = subtotal + taxAmount;
 
       // Generate transaction number
@@ -260,7 +261,16 @@ const SalesTerminal = () => {
   const completeTransaction = () => {
     setReceiptDialogOpen(false);
     setCart([]);
+    setAmountReceived("");
     // Transaction is already saved to the database in processPayment
+  };
+
+  // Calculate change for cash payments
+  const calculateChange = () => {
+    const totalDue = cartTotal * 1.11;
+    const received = parseFloat(amountReceived) || 0;
+    const change = received - totalDue;
+    return change >= 0 ? change : 0;
   };
 
   return (
@@ -476,12 +486,12 @@ const SalesTerminal = () => {
               <span>${cartTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between mb-4">
-              <span>Tax (8%)</span>
-              <span>${(cartTotal * 0.08).toFixed(2)}</span>
+              <span>Tax (11%)</span>
+              <span>${(cartTotal * 0.11).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold mb-6">
               <span>Total</span>
-              <span>${(cartTotal * 1.08).toFixed(2)}</span>
+              <span>${(cartTotal * 1.11).toFixed(2)}</span>
             </div>
 
             <Button
@@ -534,13 +544,24 @@ const SalesTerminal = () => {
                 <div className="flex justify-between">
                   <span>Total Due:</span>
                   <span className="font-bold">
-                    ${(cartTotal * 1.08).toFixed(2)}
+                    ${(cartTotal * 1.11).toFixed(2)}
                   </span>
                 </div>
-                <Input placeholder="Amount Received" type="number" />
+                <Input
+                  placeholder="Amount Received"
+                  type="number"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                />
                 <div className="flex justify-between">
                   <span>Change:</span>
-                  <span>$0.00</span>
+                  <span
+                    className={
+                      calculateChange() > 0 ? "text-green-600 font-medium" : ""
+                    }
+                  >
+                    ${calculateChange().toFixed(2)}
+                  </span>
                 </div>
               </div>
             )}
@@ -631,12 +652,12 @@ const SalesTerminal = () => {
                 <span>${cartTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax (8%)</span>
-                <span>${(cartTotal * 0.08).toFixed(2)}</span>
+                <span>Tax (11%)</span>
+                <span>${(cartTotal * 0.11).toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-bold">
                 <span>Total</span>
-                <span>${(cartTotal * 1.08).toFixed(2)}</span>
+                <span>${(cartTotal * 1.11).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>Payment Method</span>
