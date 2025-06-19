@@ -69,6 +69,8 @@ import {
 import ProductDialog from "@/components/product/ProductDialog";
 import CategoryDialog from "@/components/product/CategoryDialog";
 import DeleteProductDialog from "@/components/product/DeleteProductDialog";
+import WarehouseDialog from "@/components/warehouse/WarehouseDialog";
+import DeleteWarehouseDialog from "@/components/warehouse/DeleteWarehouseDialog";
 
 interface ProductDisplay {
   id: string;
@@ -98,8 +100,11 @@ const InventoryManager = () => {
   const [activeTab, setActiveTab] = useState("products");
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [warehouseDialogOpen, setWarehouseDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [deleteProductDialogOpen, setDeleteProductDialogOpen] = useState(false);
+  const [deleteWarehouseDialogOpen, setDeleteWarehouseDialogOpen] =
+    useState(false);
   const [selectedProductId, setSelectedProductId] = useState<
     string | undefined
   >(undefined);
@@ -108,6 +113,11 @@ const InventoryManager = () => {
     useState<CategoryDisplay | null>(null);
   const [selectedWarehouse, setSelectedWarehouse] =
     useState<WarehouseDisplay | null>(null);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<
+    string | undefined
+  >(undefined);
+  const [selectedWarehouseName, setSelectedWarehouseName] =
+    useState<string>("");
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductDisplay[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseDisplay[]>([]);
@@ -580,7 +590,12 @@ const InventoryManager = () => {
                     disabled={loading}
                   />
                 </div>
-                <Button>
+                <Button
+                  onClick={() => {
+                    setSelectedWarehouseId(undefined);
+                    setWarehouseDialogOpen(true);
+                  }}
+                >
                   <Plus className="mr-2 h-4 w-4" /> Add Warehouse
                 </Button>
               </div>
@@ -627,8 +642,8 @@ const InventoryManager = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => {
-                                  setSelectedWarehouse(warehouse);
-                                  // TODO: Open warehouse edit dialog
+                                  setSelectedWarehouseId(warehouse.id);
+                                  setWarehouseDialogOpen(true);
                                 }}
                               >
                                 <Edit className="h-4 w-4" />
@@ -637,7 +652,9 @@ const InventoryManager = () => {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => {
-                                  // TODO: Open warehouse delete dialog
+                                  setSelectedWarehouseId(warehouse.id);
+                                  setSelectedWarehouseName(warehouse.name);
+                                  setDeleteWarehouseDialogOpen(true);
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1009,6 +1026,19 @@ const InventoryManager = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Add/Edit Warehouse Dialog */}
+      <WarehouseDialog
+        open={warehouseDialogOpen}
+        onOpenChange={(open) => {
+          setWarehouseDialogOpen(open);
+          if (!open) {
+            setSelectedWarehouseId(undefined);
+          }
+        }}
+        warehouseId={selectedWarehouseId}
+        onSuccess={loadData}
+      />
+
       {/* Delete Product Dialog */}
       <DeleteProductDialog
         open={deleteProductDialogOpen}
@@ -1021,6 +1051,21 @@ const InventoryManager = () => {
         }}
         productId={selectedProductId || ""}
         productName={selectedProductName}
+        onSuccess={loadData}
+      />
+
+      {/* Delete Warehouse Dialog */}
+      <DeleteWarehouseDialog
+        open={deleteWarehouseDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteWarehouseDialogOpen(open);
+          if (!open) {
+            setSelectedWarehouseId(undefined);
+            setSelectedWarehouseName("");
+          }
+        }}
+        warehouseId={selectedWarehouseId || ""}
+        warehouseName={selectedWarehouseName}
         onSuccess={loadData}
       />
     </div>
