@@ -20,7 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
-import { Product as ProductType, Inserts } from "@/lib/supabase";
+import { Product as ProductType, Inserts, Tables } from "@/lib/supabase";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -89,7 +89,7 @@ const SalesTerminal = () => {
         const { data: productsData, error: productsError } =
           await supabase.from("products").select(`
             *,
-            category:category_id(name),
+            categories!products_category_id_fkey(name),
             inventory(*)
           `);
 
@@ -99,11 +99,12 @@ const SalesTerminal = () => {
         const formattedProducts: Product[] = productsData.map(
           (product: any) => ({
             ...product,
-            category: product.category?.name || "Uncategorized",
-            stock: product.inventory.reduce(
-              (total: number, inv: any) => total + inv.stock_level,
-              0,
-            ),
+            category: product.categories?.name || "Uncategorized",
+            stock:
+              product.inventory?.reduce(
+                (total: number, inv: any) => total + (inv.stock_level || 0),
+                0,
+              ) || 0,
           }),
         );
 
@@ -111,7 +112,7 @@ const SalesTerminal = () => {
 
         // Extract unique categories
         const uniqueCategories = Array.from(
-          new Set(formattedProducts.map((p) => p.category)),
+          new Set(formattedProducts.map((p) => p.category).filter(Boolean)),
         );
         setCategories(uniqueCategories);
       } catch (err: any) {
@@ -126,13 +127,18 @@ const SalesTerminal = () => {
   }, []);
 
   // Filter products based on search query and selected category
-  const filteredProducts = products.filter(
-    (product) =>
-      (product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (product.barcode && product.barcode.includes(searchQuery))) &&
-      (selectedCategory === "all" ||
-        product.category.toLowerCase() === selectedCategory.toLowerCase()),
-  );
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.barcode && product.barcode.includes(searchQuery));
+
+    const matchesCategory =
+      selectedCategory === "all" ||
+      (product.category &&
+        product.category.toLowerCase() === selectedCategory.toLowerCase());
+
+    return matchesSearch && matchesCategory;
+  });
 
   // Add product to cart
   const addToCart = (product: Product) => {
@@ -189,31 +195,35 @@ const SalesTerminal = () => {
       const transactionNumber = `TX-${Date.now().toString().slice(-6)}`;
 
       // Create transaction record
+      const transactionData: Inserts<"transactions"> = {
+        transaction_number: transactionNumber,
+        user_id: currentUser.id,
+        payment_method: paymentMethod as "card" | "cash" | "mobile",
+        status: "completed",
+        subtotal,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        customer_name: "Walk-in Customer",
+      };
+
       const { data: transaction, error: transactionError } = await supabase
         .from("transactions")
-        .insert({
-          transaction_number: transactionNumber,
-          user_id: currentUser.id,
-          payment_method: paymentMethod,
-          status: "completed",
-          subtotal,
-          tax_amount: taxAmount,
-          total_amount: totalAmount,
-          customer_name: "Walk-in Customer", // Could be customized in a real app
-        })
+        .insert(transactionData)
         .select()
         .single();
 
       if (transactionError) throw transactionError;
 
       // Create transaction items
-      const transactionItems = cart.map((item) => ({
-        transaction_id: transaction.id,
-        product_id: item.id,
-        quantity: item.quantity,
-        unit_price: item.price,
-        total_price: item.price * item.quantity,
-      }));
+      const transactionItems: Inserts<"transaction_items">[] = cart.map(
+        (item) => ({
+          transaction_id: transaction.id,
+          product_id: item.id,
+          quantity: item.quantity,
+          unit_price: item.price,
+          total_price: item.price * item.quantity,
+        }),
+      );
 
       const { error: itemsError } = await supabase
         .from("transaction_items")
@@ -224,11 +234,16 @@ const SalesTerminal = () => {
       // Update inventory levels
       for (const item of cart) {
         // Get all inventory records for this product
-        const { data: inventoryItems } = await supabase
+        const { data: inventoryItems, error: inventoryError } = await supabase
           .from("inventory")
           .select("*")
           .eq("product_id", item.id)
           .order("stock_level", { ascending: false });
+
+        if (inventoryError) {
+          console.error("Error fetching inventory:", inventoryError);
+          continue;
+        }
 
         if (!inventoryItems || inventoryItems.length === 0) continue;
 
@@ -242,10 +257,14 @@ const SalesTerminal = () => {
           remainingQuantity -= deduction;
 
           // Update inventory record
-          await supabase
+          const { error: updateError } = await supabase
             .from("inventory")
             .update({ stock_level: invItem.stock_level - deduction })
             .eq("id", invItem.id);
+
+          if (updateError) {
+            console.error("Error updating inventory:", updateError);
+          }
         }
       }
 
@@ -674,7 +693,7 @@ const SalesTerminal = () => {
             <div className="text-center mt-6">
               <p className="text-sm">Thank you for your purchase!</p>
               <p className="text-xs text-muted-foreground">
-                Transaction #: {Math.floor(Math.random() * 1000000)}
+                Transaction #: TX-{Date.now().toString().slice(-6)}
               </p>
               <p className="text-xs text-muted-foreground">
                 {new Date().toLocaleString()}

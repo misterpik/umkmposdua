@@ -214,13 +214,91 @@ CROSS JOIN public.warehouses w
 WHERE w.name = 'Warehouse A'
 ON CONFLICT (product_id, warehouse_id) DO NOTHING;
 
--- Enable realtime for all tables
-alter publication supabase_realtime add table public.users;
-alter publication supabase_realtime add table public.categories;
-alter publication supabase_realtime add table public.warehouses;
-alter publication supabase_realtime add table public.products;
-alter publication supabase_realtime add table public.inventory;
-alter publication supabase_realtime add table public.transactions;
-alter publication supabase_realtime add table public.transaction_items;
-alter publication supabase_realtime add table public.stock_transfers;
-alter publication supabase_realtime add table public.stock_transfer_items;
+-- Enable Row Level Security (RLS) for all tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.warehouses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transaction_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_transfers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_transfer_items ENABLE ROW LEVEL SECURITY;
+
+-- Create policies to allow public access (since RLS is disabled by default in the instructions)
+CREATE POLICY "Allow all operations" ON public.users FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.categories FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.warehouses FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.products FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.inventory FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.transactions FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.transaction_items FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.stock_transfers FOR ALL USING (true);
+CREATE POLICY "Allow all operations" ON public.stock_transfer_items FOR ALL USING (true);
+
+-- Enable realtime for all tables (conditionally)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'users'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'categories'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.categories;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'warehouses'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.warehouses;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'products'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'inventory'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.inventory;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'transactions'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'transaction_items'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.transaction_items;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'stock_transfers'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_transfers;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'stock_transfer_items'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.stock_transfer_items;
+    END IF;
+END $$;

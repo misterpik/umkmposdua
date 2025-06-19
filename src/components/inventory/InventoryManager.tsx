@@ -68,6 +68,7 @@ import {
 } from "@/lib/supabase";
 import ProductDialog from "@/components/product/ProductDialog";
 import CategoryDialog from "@/components/product/CategoryDialog";
+import DeleteProductDialog from "@/components/product/DeleteProductDialog";
 
 interface ProductDisplay {
   id: string;
@@ -98,7 +99,15 @@ const InventoryManager = () => {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteProductDialogOpen, setDeleteProductDialogOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<
+    string | undefined
+  >(undefined);
+  const [selectedProductName, setSelectedProductName] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryDisplay | null>(null);
+  const [selectedWarehouse, setSelectedWarehouse] =
+    useState<WarehouseDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<ProductDisplay[]>([]);
   const [warehouses, setWarehouses] = useState<WarehouseDisplay[]>([]);
@@ -143,6 +152,12 @@ const InventoryManager = () => {
       return;
     }
 
+    // If no products exist in database, use empty array instead of mock data
+    if (!data || data.length === 0) {
+      setProducts([]);
+      return;
+    }
+
     const productsDisplay: ProductDisplay[] = (
       data as ProductWithInventory[]
     ).map((product) => {
@@ -150,13 +165,19 @@ const InventoryManager = () => {
         (sum, inv) => sum + inv.stock_level,
         0,
       );
+
+      // Get the warehouse with the highest stock level for this product
+      const primaryInventory = product.inventory.reduce((prev, current) => {
+        return current.stock_level > prev.stock_level ? current : prev;
+      }, product.inventory[0]);
+
       const primaryWarehouse =
-        product.inventory[0]?.warehouse?.name || "No Warehouse";
+        primaryInventory?.warehouse?.name || "No Warehouse";
 
       let status: "In Stock" | "Low Stock" | "Out of Stock";
       if (totalStock === 0) {
         status = "Out of Stock";
-      } else if (totalStock <= (product.inventory[0]?.reorder_point || 10)) {
+      } else if (totalStock <= (primaryInventory?.reorder_point || 10)) {
         status = "Low Stock";
       } else {
         status = "In Stock";
@@ -187,6 +208,12 @@ const InventoryManager = () => {
       return;
     }
 
+    // If no warehouses exist in database, use empty array instead of mock data
+    if (!warehousesData || warehousesData.length === 0) {
+      setWarehouses([]);
+      return;
+    }
+
     const { data: inventoryData, error: inventoryError } = await supabase
       .from("inventory")
       .select("warehouse_id");
@@ -196,13 +223,14 @@ const InventoryManager = () => {
       return;
     }
 
-    const warehouseProductCounts = inventoryData.reduce(
-      (acc, inv) => {
-        acc[inv.warehouse_id] = (acc[inv.warehouse_id] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+    const warehouseProductCounts =
+      inventoryData?.reduce(
+        (acc, inv) => {
+          acc[inv.warehouse_id] = (acc[inv.warehouse_id] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ) || {};
 
     const warehousesDisplay: WarehouseDisplay[] = warehousesData.map(
       (warehouse) => ({
@@ -226,6 +254,12 @@ const InventoryManager = () => {
       return;
     }
 
+    // If no categories exist in database, use empty array instead of mock data
+    if (!categoriesData || categoriesData.length === 0) {
+      setCategories([]);
+      return;
+    }
+
     const { data: productsData, error: productsError } = await supabase
       .from("products")
       .select("category_id");
@@ -235,15 +269,16 @@ const InventoryManager = () => {
       return;
     }
 
-    const categoryProductCounts = productsData.reduce(
-      (acc, product) => {
-        if (product.category_id) {
-          acc[product.category_id] = (acc[product.category_id] || 0) + 1;
-        }
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
+    const categoryProductCounts =
+      productsData?.reduce(
+        (acc, product) => {
+          if (product.category_id) {
+            acc[product.category_id] = (acc[product.category_id] || 0) + 1;
+          }
+          return acc;
+        },
+        {} as Record<string, number>,
+      ) || {};
 
     const categoriesDisplay: CategoryDisplay[] = categoriesData.map(
       (category) => ({
@@ -388,7 +423,12 @@ const InventoryManager = () => {
             />{" "}
             Refresh
           </Button>
-          <Button onClick={() => setProductDialogOpen(true)}>
+          <Button
+            onClick={() => {
+              setSelectedProductId(undefined);
+              setProductDialogOpen(true);
+            }}
+          >
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         </div>
@@ -459,55 +499,63 @@ const InventoryManager = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredProducts.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-medium">
-                          {product.name}
-                        </TableCell>
-                        <TableCell>{product.sku}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell className="text-right">
-                          ${product.price.toFixed(2)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {product.stock}
-                        </TableCell>
-                        <TableCell>{product.location}</TableCell>
-                        <TableCell>{getStatusBadge(product.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Are you sure?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will
-                                    permanently delete the selected product from
-                                    your inventory.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction className="bg-destructive text-destructive-foreground">
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                    {filteredProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          {products.length === 0
+                            ? "No products found. Add a product to get started."
+                            : "No products match your search criteria."}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell className="font-medium">
+                            {product.name}
+                          </TableCell>
+                          <TableCell>{product.sku}</TableCell>
+                          <TableCell>{product.category}</TableCell>
+                          <TableCell className="text-right">
+                            ${product.price.toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {product.stock}
+                          </TableCell>
+                          <TableCell>{product.location}</TableCell>
+                          <TableCell>
+                            {getStatusBadge(product.status)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedProductId(product.id);
+                                  setProductDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedProductId(product.id);
+                                  setSelectedProductName(product.name);
+                                  setDeleteProductDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -554,27 +602,51 @@ const InventoryManager = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {warehouses.map((warehouse) => (
-                      <TableRow key={warehouse.id}>
-                        <TableCell className="font-medium">
-                          {warehouse.name}
-                        </TableCell>
-                        <TableCell>{warehouse.location}</TableCell>
-                        <TableCell className="text-center">
-                          {warehouse.products}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {warehouses.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          No warehouses found. Add a warehouse to get started.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      warehouses.map((warehouse) => (
+                        <TableRow key={warehouse.id}>
+                          <TableCell className="font-medium">
+                            {warehouse.name}
+                          </TableCell>
+                          <TableCell>{warehouse.location}</TableCell>
+                          <TableCell className="text-center">
+                            {warehouse.products}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedWarehouse(warehouse);
+                                  // TODO: Open warehouse edit dialog
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  // TODO: Open warehouse delete dialog
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -599,7 +671,12 @@ const InventoryManager = () => {
                     disabled={loading}
                   />
                 </div>
-                <Button onClick={() => setCategoryDialogOpen(true)}>
+                <Button
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setCategoryDialogOpen(true);
+                  }}
+                >
                   <Plus className="mr-2 h-4 w-4" /> Add Category
                 </Button>
               </div>
@@ -620,26 +697,50 @@ const InventoryManager = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {categories.map((category) => (
-                      <TableRow key={category.id}>
-                        <TableCell className="font-medium">
-                          {category.name}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {category.productCount}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {categories.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          No categories found. Add a category to get started.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      categories.map((category) => (
+                        <TableRow key={category.id}>
+                          <TableCell className="font-medium">
+                            {category.name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {category.productCount}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedCategory(category);
+                                  setCategoryDialogOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  // TODO: Open category delete dialog
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               )}
@@ -759,14 +860,34 @@ const InventoryManager = () => {
       {/* Add/Edit Product Dialog */}
       <ProductDialog
         open={productDialogOpen}
-        onOpenChange={setProductDialogOpen}
+        onOpenChange={(open) => {
+          setProductDialogOpen(open);
+          if (!open) {
+            setSelectedProductId(undefined);
+          }
+        }}
+        productId={selectedProductId}
         onSuccess={loadData}
       />
 
       {/* Add/Edit Category Dialog */}
       <CategoryDialog
         open={categoryDialogOpen}
-        onOpenChange={setCategoryDialogOpen}
+        onOpenChange={(open) => {
+          setCategoryDialogOpen(open);
+          if (!open) {
+            setSelectedCategory(null);
+          }
+        }}
+        category={
+          selectedCategory
+            ? {
+                id: selectedCategory.id,
+                name: selectedCategory.name,
+                description: undefined,
+              }
+            : null
+        }
         onSuccess={loadData}
       />
 
@@ -887,6 +1008,21 @@ const InventoryManager = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Product Dialog */}
+      <DeleteProductDialog
+        open={deleteProductDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteProductDialogOpen(open);
+          if (!open) {
+            setSelectedProductId(undefined);
+            setSelectedProductName("");
+          }
+        }}
+        productId={selectedProductId || ""}
+        productName={selectedProductName}
+        onSuccess={loadData}
+      />
     </div>
   );
 };

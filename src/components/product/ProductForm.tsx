@@ -189,19 +189,19 @@ const ProductForm: React.FC<ProductFormProps> = ({
     setError(null);
 
     try {
-      let productId;
+      let currentProductId = productId;
 
-      if (productId) {
+      if (currentProductId) {
         // Update existing product
         const { data: updatedProduct, error: updateError } = await supabase
           .from("products")
           .update(data)
-          .eq("id", productId)
+          .eq("id", currentProductId)
           .select()
           .single();
 
         if (updateError) throw updateError;
-        productId = updatedProduct.id;
+        currentProductId = updatedProduct.id;
       } else {
         // Create new product
         const { data: newProduct, error: insertError } = await supabase
@@ -211,7 +211,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
           .single();
 
         if (insertError) throw insertError;
-        productId = newProduct.id;
+        currentProductId = newProduct.id;
       }
 
       // Update inventory for each warehouse
@@ -220,7 +220,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         const { data: existingInventory } = await supabase
           .from("inventory")
           .select("id")
-          .eq("product_id", productId)
+          .eq("product_id", currentProductId)
           .eq("warehouse_id", item.warehouse_id)
           .maybeSingle();
 
@@ -236,7 +236,7 @@ const ProductForm: React.FC<ProductFormProps> = ({
         } else {
           // Create new inventory record
           await supabase.from("inventory").insert({
-            product_id: productId,
+            product_id: currentProductId,
             warehouse_id: item.warehouse_id,
             stock_level: item.stock_level,
             reorder_point: item.reorder_point,
